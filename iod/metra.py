@@ -212,7 +212,7 @@ class METRA(IOD):
         return (target_z * v['options']).sum(dim=1)
 
     def _calculate_cross_entropy_rewards(self, v, target_z):
-        logits = target_z.mean if self.discrete else target_z.log_prob(v['options'])
+        logits = self.traj_encoder(v['next_obs']).mean if self.discrete else self.traj_encoder(v['next_obs']).log_prob(v['options'])
         return -torch.nn.functional.cross_entropy(logits, v['options'].argmax(dim=1), reduction='none') if self.discrete else logits
 
     def _perform_gradient_descent(self, loss, optimizer_key):
