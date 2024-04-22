@@ -361,6 +361,7 @@ def run(ctxt=None):
         pixel_shape = None
 
     device = torch.device('cuda' if args.use_gpu else 'cpu')
+    print("Using device:", device)
 
     master_dims = [args.model_master_dim] * args.model_master_num_layers
 
