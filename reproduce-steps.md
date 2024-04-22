@@ -52,3 +52,23 @@ Problem: No CUDA GPU available on adroit (when not using SLURM scheduling)
 Quick Fix: add `--use-gpu 0` to the test command.
 
 Solution: Schedule the job using SLURM and allocate necessary GPUs
+
+# Reimplementing METRA Algorithm
+
+## General Improvements
+
+**Modularization:** Key computations and logic segments were extracted into separate, well-defined functions. This not only simplifies each function but also enhances readability and maintainability.
+
+**Improved Readability:** By using descriptive naming, adding detailed comments, and separating concerns, the functions are more understandable and easier to maintain.
+
+**Efficiency and Performance:** Leveraged built-in PyTorch functionalities and optimized tensor operations to improve performance and reduce the risk of bugs.
+
+## Specific Function Enhancements
+
+- Rewrote `./iod/metra.py`
+- Rewrote `./iod/sac_utils.py`
+- Note: Did not change overall code flow to ensure input output consistency.
+
+## TODOS
+
+- Add code to `./main.py` for reproducing downstream tasks (Fig 6 and 9)

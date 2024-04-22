@@ -20,6 +20,8 @@ if 'mac' in platform.platform():
     pass
 else:
     os.environ['MUJOCO_GL'] = 'egl'
+    # os.environ['MUJOCO_GL'] = 'osmesa'
+    # os.environ["CUDA_VISIBLE_DEVICES"]="1"
     if 'SLURM_STEP_GPUS' in os.environ:
         os.environ['EGL_DEVICE_ID'] = os.environ['SLURM_STEP_GPUS']
 
@@ -133,6 +135,16 @@ def get_argparser():
     parser.add_argument('--dual_dist', type=str, default='one', choices=['l2', 's2_from_s', 'one'])
     parser.add_argument('--dual_lr', type=float, default=None)
 
+    parser.add_argument('--cp_path', type=str, default=None)
+    parser.add_argument('--cp_path_idx', type=int, default=None)  # For exp name
+    parser.add_argument('--cp_multi_step', type=int, default=1)
+    parser.add_argument('--cp_unit_length', type=int, default=0)
+
+    parser.add_argument('--downstream_reward_type', type=str, default='esparse')
+    parser.add_argument('--downstream_num_goal_steps', type=int, default=50)
+
+    parser.add_argument('--goal_range', type=float, default=50)
+
     return parser
 
 
@@ -223,6 +235,31 @@ def make_env(args, max_path_length):
     elif args.env == 'ant':
         from envs.mujoco.ant_env import AntEnv
         env = AntEnv(render_hw=100)
+    elif args.env == 'ant_nav_prime':
+        from envs.mujoco.ant_nav_prime_env import AntNavPrimeEnv
+
+        env = AntNavPrimeEnv(
+            max_path_length=max_path_length,
+            goal_range=args.goal_range,
+            num_goal_steps=args.downstream_num_goal_steps,
+            reward_type=args.downstream_reward_type,
+        )
+        cp_num_truncate_obs = 2
+    elif args.env == 'half_cheetah_goal':
+        from envs.mujoco.half_cheetah_goal_env import HalfCheetahGoalEnv
+        env = HalfCheetahGoalEnv(
+            max_path_length=max_path_length,
+            goal_range=args.goal_range,
+            reward_type=args.downstream_reward_type,
+        )
+        cp_num_truncate_obs = 1
+    elif args.env == 'half_cheetah_hurdle':
+        from envs.mujoco.half_cheetah_hurdle_env import HalfCheetahHurdleEnv
+
+        env = HalfCheetahHurdleEnv(
+            reward_type=args.downstream_reward_type,
+        )
+        cp_num_truncate_obs = 2
     elif args.env.startswith('dmc'):
         from envs.custom_dmc_tasks import dmc
         from envs.custom_dmc_tasks.pixel_wrappers import RenderWrapper
@@ -230,14 +267,26 @@ def make_env(args, max_path_length):
         if args.env == 'dmc_cheetah':
             env = dmc.make('cheetah_run_forward_color', obs_type='states', frame_stack=1, action_repeat=2, seed=args.seed)
             env = RenderWrapper(env)
-        elif args.env == 'dmc_quadruped':
+        #elif args.env == 'dmc_quadruped':
+        elif args.env.startswith('dmc_quadruped'):
             env = dmc.make('quadruped_run_forward_color', obs_type='states', frame_stack=1, action_repeat=2, seed=args.seed)
             env = RenderWrapper(env)
-        elif args.env == 'dmc_humanoid':
+        #elif args.env == 'dmc_humanoid':
+        elif args.env.startswith('dmc_humanoid'):
             env = dmc.make('humanoid_run_color', obs_type='states', frame_stack=1, action_repeat=2, seed=args.seed)
             env = RenderWrapper(env)
         else:
             raise NotImplementedError
+        if args.env in ['dmc_quadruped_goal', 'dmc_humanoid_goal']:
+            from envs.custom_dmc_tasks.goal_wrappers import GoalWrapper
+
+            env = GoalWrapper(
+                env,
+                max_path_length=max_path_length,
+                goal_range=args.goal_range,
+                num_goal_steps=args.downstream_num_goal_steps,
+            )
+            cp_num_truncate_obs = 2
     elif args.env == 'kitchen':
         sys.path.append('lexa')
         from envs.lexa.mykitchen import MyKitchenEnv
@@ -249,6 +298,23 @@ def make_env(args, max_path_length):
     if args.frame_stack is not None:
         from envs.custom_dmc_tasks.pixel_wrappers import FrameStackWrapper
         env = FrameStackWrapper(env, args.frame_stack)
+    
+    if args.cp_path is not None:
+        from garagei.envs.child_policy_env import ChildPolicyEnv
+        cp_path = args.cp_path
+        if not os.path.exists(cp_path):
+            import glob
+            cp_path = glob.glob(cp_path)[0]
+        cp_dict = torch.load(cp_path, map_location='cpu')
+
+        env = ChildPolicyEnv(
+            env,
+            cp_dict,
+            cp_action_range=1.5,
+            cp_unit_length=args.cp_unit_length,
+            cp_multi_step=args.cp_multi_step,
+            cp_num_truncate_obs=cp_num_truncate_obs,
+        )
 
     normalizer_type = args.normalizer_type
     normalizer_kwargs = {}
@@ -269,6 +335,10 @@ def run(ctxt=None):
         wandb_output_dir = tempfile.mkdtemp()
         wandb.init(project='metra', entity='', group=args.run_group, name=get_exp_name()[0],
                    config=vars(args), dir=wandb_output_dir)
+        
+    max_path_length = args.max_path_length
+    if args.cp_path is not None:
+        max_path_length *= args.cp_multi_step
 
     dowel.logger.log('ARGS: ' + str(args))
     if args.n_thread is not None:

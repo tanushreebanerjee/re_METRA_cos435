@@ -1,0 +1,26 @@
+name: metra
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_gnu
+  - ca-certificates=2024.3.11
+  - ld_impl_linux-64=2.38
+  - libffi=3.4.4
+  - libgcc-ng=13.2.0
+  - libgomp=13.2.0
+  - libstdcxx-ng=13.2.0
+  - ncurses=6.4
+  - openssl=3.0.13
+  - pip=23.3.1
+  - python=3.8.19
+  - readline=8.2
+  - setuptools=68.2.2
+  - sqlite=3.41.2
+  - tk=8.6.12
+  - wheel=0.41.2
+  - xz=5.4.6
+  - zlib=1.2.13
+  - pip:
+      - -r file:requirements_0.txt --no-deps
