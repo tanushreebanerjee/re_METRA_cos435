@@ -49,9 +49,26 @@ Then add `export PATH=$PATH:/scratch/network/tb19/local/bin` to `~/.bashrc` and 
 ---
 Problem: No CUDA GPU available on adroit (when not using SLURM scheduling)
 
-Quick Fix: add `--use-gpu 0` to the test command.
+Quick Fix: add `--use_gpu 0` to the test command.
 
 Solution: Schedule the job using SLURM and allocate necessary GPUs
+
+---
+Problem: Cudnn version mismatch, symbol lookup error.
+
+Solution: Manually install the correct cuda-toolkit
+```Bash
+conda install nvidia/label/cuda-11.5.0::cuda-toolkit
+```
+And make sure to include the correct modules in adroit.
+```Bash
+module purge
+HOME=/scratch/network/tb19 # if using the scratch network for more gbs
+module load anaconda3/2024.2 # for conda
+module load cudnn/cuda-11.5/8.3.2 # cudnn version compatible for cudatoolkit 11.5
+conda activate metra 
+source ~/.bashrc
+```
 
 # Reimplementing METRA Algorithm
 
